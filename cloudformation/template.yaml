@@ -1297,8 +1297,33 @@ Resources:
         AllowAdminCreateUserOnly: !If [
           InviteAccountRegistrationMode, 'true', 'false',
         ]
+        InviteMessageTemplate:
+          EmailSubject: 'Developer Portal - Invitation'
+          EmailMessage: !Join [ '', [
+            '<h2>Developer Portal</h2><p>You have been invited to access the developer portal at <a href="',
+            !If [ 'DevelopmentMode',
+              !Join [ '', [ 'https://', !GetAtt DevPortalSiteS3Bucket.RegionalDomainName, '/index.html' ]],
+              !If [
+                'UseCustomDomainName',
+                !Join [ '', [ 'https://', !Ref CustomDomainName ]],
+                !Join [ '', [ 'https://', !GetAtt DefaultCloudfrontDistribution.DomainName ]]
+              ]
+            ],
+            '">',
+            !If [ 'DevelopmentMode',
+              !Join [ '', [ 'https://', !GetAtt DevPortalSiteS3Bucket.RegionalDomainName, '/index.html' ]],
+              !If [
+                'UseCustomDomainName',
+                !Join [ '', [ 'https://', !Ref CustomDomainName ]],
+                !Join [ '', [ 'https://', !GetAtt DefaultCloudfrontDistribution.DomainName ]]
+              ]
+            ],
+            '</a>.</p><p><b>Username:</b> {username}<br><b>Temporary password:</b> {####}</p>'
+          ] ]
       AutoVerifiedAttributes: ['email']
       UsernameAttributes: ['email']
+      EmailVerificationSubject: 'Developer Portal - Verification Code'
+      EmailVerificationMessage: '<h2>Developer Portal</h2><p>Your verification code is <b>{####}</b></p>'
 
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -1367,7 +1392,8 @@ Resources:
       CallbackURL: !If [ LocalDevelopmentMode,
         [
           'http://localhost:3000/index.html?action=login',
-          !Join [ '', [ 'https://', !GetAtt DevPortalSiteS3Bucket.RegionalDomainName, '/index.html?action=login' ]]
+          !Join [ '', [ 'https://', !GetAtt DevPortalSiteS3Bucket.RegionalDomainName, '/index.html?action=login' ]],
+          !Join [ '', [ 'https://', !If [ UseCustomDomainName, !Ref CustomDomainName, !GetAtt DefaultCloudfrontDistribution.DomainName ], '/index.html?action=login' ]]
         ],
         [
           !Join [ '', [ 'https://', !If [ UseCustomDomainName, !Ref CustomDomainName, !GetAtt DefaultCloudfrontDistribution.DomainName ], '/index.html?action=login' ]]
@@ -1377,12 +1403,10 @@ Resources:
         [
           'http://localhost:3000/index.html?action=logout',
           !Join [ '', [ 'https://', !GetAtt DevPortalSiteS3Bucket.RegionalDomainName, '/index.html?action=logout' ]],
-          'http://localhost:3000/index.html?action=logout&reason=inactive',
-          !Join [ '', [ 'https://', !GetAtt DevPortalSiteS3Bucket.RegionalDomainName, '/index.html?action=logout&reason=inactive' ]]
+          !Join [ '', [ 'https://', !If [ UseCustomDomainName, !Ref CustomDomainName, !GetAtt DefaultCloudfrontDistribution.DomainName ], '/index.html?action=logout' ]],
         ],
         [
           !Join [ '', [ 'https://', !If [ UseCustomDomainName, !Ref CustomDomainName, !GetAtt DefaultCloudfrontDistribution.DomainName ], '/index.html?action=logout' ]],
-          !Join [ '', [ 'https://', !If [ UseCustomDomainName, !Ref CustomDomainName, !GetAtt DefaultCloudfrontDistribution.DomainName ], '/index.html?action=logout&reason=inactive' ]]
         ]
       ]
       AllowedOAuthFlowsUserPoolClient: true
