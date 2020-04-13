@@ -1,6 +1,6 @@
 ---
-title: Developer Portal
-header: Developer Portal
+title: Michelin Developer Portal
+header: Michelin Developer Portal
 tagline: Your gateway to the data.
 gettingStartedButton: Get Started
 apiListButton: Our APIs
