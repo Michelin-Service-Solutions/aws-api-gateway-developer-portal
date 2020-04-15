@@ -83,7 +83,7 @@ export default observer(function ApisMenu (props) {
 
       <>
         {apiGroupList.map(({ apis, title, group, active }) => (
-          <MenuLink key={group} active={active}>
+          <MenuLink key={group} active={active} to={apis.length > 0 ? apis[0].route : null}>
             {title}
             <Menu.Menu>
               {apis.map(({ route, stage, active, id }) => (

@@ -74,7 +74,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
 
   uploadAPISpec (event) {
     event.preventDefault()
-
+    console.log(this.fileInput.current.files)
     const files = this.fileInput.current.files
     let swagger, swaggerObject, anyFailures
 
