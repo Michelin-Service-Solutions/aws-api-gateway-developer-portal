@@ -17,7 +17,7 @@ export const SideNav = observer(() => isAdmin() && (
   <Sidebar>
     <SidebarHeader>Admin</SidebarHeader>
     <MenuLink to='/admin/apis'>APIs</MenuLink>
-    <MenuLink>
+    <MenuLink to='/admin/accounts'>
       Accounts
       <Menu.Menu>
         <MenuLink to='/admin/accounts'>Users</MenuLink>

@@ -17,7 +17,7 @@ import Sidebar from 'components/Sidebar/Sidebar'
 import SidebarHeader from 'components/Sidebar/SidebarHeader'
 import MenuLink from 'components/MenuLink'
 
-function getApisWithStages (selectedApiId, selectedStage, activateFirst) {
+function getApisWithStages(selectedApiId, selectedStage, activateFirst) {
   const apiGatewayApiList = _.get(store, 'apiList.apiGateway', []).map(api => ({
     group: api.id,
     id: api.stage,
@@ -45,7 +45,7 @@ function getApisWithStages (selectedApiId, selectedStage, activateFirst) {
     .map(([group, apis]) => ({ group, apis, active: _.some(apis, 'active'), title: apis[0].title }))
 }
 
-export default observer(function ApisMenu (props) {
+export default observer(function ApisMenu(props) {
   // If we're still loading, display a spinner.
   // If we're not loading, and we don't have any apis, display a message.
   // If we're not loading, and we have some apis, render the appropriate api subsections for apiGateway and generic apis
@@ -67,6 +67,17 @@ export default observer(function ApisMenu (props) {
     return <Redirect to={apiGroupList[0].apis[0].route} />
   }
 
+  const subscribableApis = apiGroupList.filter(({ apis }) => {
+    const result = apis.filter(({ stage }) => { return stage ? true : false })
+    return result.length > 0
+  })
+
+  const nonSubscribableApis = apiGroupList.filter(({ apis }) => {
+    const result = apis.filter(({ stage }) => { return stage ? false : true })
+    return result.length > 0
+  })
+
+
   return (
     <Sidebar>
       <SidebarHeader
@@ -79,10 +90,23 @@ export default observer(function ApisMenu (props) {
         Search APIs
       </SidebarHeader>
 
-      <SidebarHeader>APIs</SidebarHeader>
+      <SidebarHeader>API Subscriptions</SidebarHeader>
 
       <>
-        {apiGroupList.map(({ apis, title, group, active }) => (
+        {subscribableApis.map(({ apis, title, group, active }) => (
+          <MenuLink key={group} active={active} to={apis.length > 0 ? apis[0].route : null}>
+            {title}
+            <Menu.Menu>
+              {apis.map(({ route, stage, active, id }) => (
+                <MenuLink key={id} to={route} active={active} style={{ fontWeight: '400' }}>
+                  {stage}
+                </MenuLink>
+              ))}
+            </Menu.Menu>
+          </MenuLink>
+        ))}
+      <SidebarHeader>API Reference</SidebarHeader>
+        {nonSubscribableApis.map(({ apis, title, group, active }) => (
           <MenuLink key={group} active={active} to={apis.length > 0 ? apis[0].route : null}>
             {title}
             <Menu.Menu>
