@@ -68,12 +68,12 @@ export default observer(function ApisMenu(props) {
   }
 
   const subscribableApis = apiGroupList.filter(({ apis }) => {
-    const result = apis.filter(({ stage }) => { return stage ? true : false })
+    const result = apis.filter(({ stage }) => { return !!stage })
     return result.length > 0
   })
 
   const nonSubscribableApis = apiGroupList.filter(({ apis }) => {
-    const result = apis.filter(({ stage }) => { return stage ? false : true })
+    const result = apis.filter(({ stage }) => { return !stage })
     return result.length > 0
   })
 

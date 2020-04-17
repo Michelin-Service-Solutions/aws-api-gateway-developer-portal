@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Button, Loader, Table, Modal, Form, Message, Popup, Icon } from 'semantic-ui-react'
+import { Button, Loader, Table, Modal, Form, Message, Popup, Icon, Dropdown } from 'semantic-ui-react'
 
 import { apiGatewayClient } from 'services/api'
 import { getApi } from 'services/api-catalog'
@@ -35,7 +35,8 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     this.state = {
       modalOpen: false,
       errors: [],
-      apisUpdating: []
+      apisUpdating: [],
+      apiSelected: '',
     }
 
     this.fileInput = React.createRef()
@@ -106,7 +107,12 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
             .then((app) => app.post('/admin/catalog/visibility', {}, { swagger }, {}))
             .then((res) => {
               if (res.status === 200) {
-                this.setState(prev => ({ ...prev, modalOpen: Boolean(anyFailures), errors: anyFailures ? prev.errors : [] }))
+                this.setState(prev => ({ 
+                  ...prev, 
+                  modalOpen: Boolean(anyFailures), 
+                  errors: anyFailures ? prev.errors : []
+                 }))
+                 // Save link between file and chosen api
               }
               setTimeout(() => this.getApiVisibility(), 2000)
             })
@@ -431,7 +437,25 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     </>
   }
 
+  handleDropdownApiChange (e, { value }) {
+    this.setState(prev => ({ ...prev, apiSelected: value }))
+  }
+
   render () {
+    const apiList = store.visibility.apiGateway.map(api => {
+      return {
+        key: `${api.name}_${api.stage}`,
+        text: `${api.name}_${api.stage}`,
+        value: api.id,
+      }
+    })
+
+    apiList.push({
+      key: `NONE`,
+      text: `NONE`,
+      value: `NONE`,
+    })
+
     return (
       <div style={{ display: 'flex', width: '100%' }}>
         <div style={{ padding: '2em' }}>
@@ -486,6 +510,15 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                           <Form.Field>
                             <label htmlFor='files'>Select Files:</label>
                             <input type='file' id='files' name='files' accept='.json,.yaml,.yml' multiple ref={this.fileInput} />
+                            <Dropdown 
+                              placeholder='Apis' 
+                              search 
+                              selection 
+                              options={apiList}
+                              onChange={(e, { value }) => this.setState(prev => (
+                                { ...prev, apiSelected: value }
+                              ))}
+                            />
                           </Form.Field>
                           {!!this.state.errors.length &&
                             <Message size='tiny' color='red' list={this.state.errors} header='These files are not parseable or do not contain an api title:' />}
