@@ -41,6 +41,11 @@ const developmentMode = getOptional('developmentMode')
 // AWS SAM CLI configuration
 const awsSamCliProfile = getOptional('awsSamCliProfile')
 
+// Custom domain configuration
+const customDomainName = getOptional('customDomainName')
+const customDomainNameAcmCertArn = getOptional('customDomainNameAcmCertArn')
+const useRoute53Nameservers = getOptional('useRoute53Nameservers')
+
 async function main () {
   execute('sam', [
     'package',
@@ -66,6 +71,9 @@ async function main () {
     ...(developmentMode ? [`LocalDevelopmentMode=${developmentMode}`] : []),
     `CognitoDomainNameOrPrefix=${cognitoDomainName}`,
     '--s3-bucket', buildAssetsBucket,
+    ...(customDomainName ? [`CustomDomainName=${customDomainName}`] : [] ),
+    ...(customDomainNameAcmCertArn ? [`CustomDomainNameAcmCertArn=${customDomainNameAcmCertArn}`] : [] ),
+    ...(useRoute53Nameservers ? [`UseRoute53Nameservers=${useRoute53Nameservers}`] : [] ),
     ...(awsSamCliProfile ? ['--profile', awsSamCliProfile] : [])
   ])
   await writeConfig()
