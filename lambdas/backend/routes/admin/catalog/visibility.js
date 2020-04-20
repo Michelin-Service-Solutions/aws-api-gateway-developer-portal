@@ -155,10 +155,13 @@ exports.post = async (req, res) => {
       console.log(`Given the input of type ${typeof swaggerObject}:`)
       console.log(JSON.stringify(swaggerObject, null, 4))
       console.log(`I produced the hash: ${hash(swaggerObject)}`)
+      const apiSelected = req.body && req.body.apiSelected ? req.body.apiSelected : 'NONE'
 
       const params = {
         Bucket: process.env.StaticBucketName,
-        Key: `catalog/${hash(swaggerObject)}.json`,
+        Key: apiSelected !== 'NONE' ? 
+          `catalog/${hash(swaggerObject)}-custom-${apiSelected}.json` :
+          `catalog/${hash(swaggerObject)}-custom.json`,
         Body: req.body.swagger
       }
 
