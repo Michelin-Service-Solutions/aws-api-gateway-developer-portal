@@ -102,9 +102,10 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
           if (anyFailures) {
             return
           }
+          const { apiSelected } = this.state;
 
           apiGatewayClient()
-            .then((app) => app.post('/admin/catalog/visibility', {}, { swagger }, {}))
+            .then((app) => app.post('/admin/catalog/visibility', {}, { swagger, apiSelected }, {}))
             .then((res) => {
               if (res.status === 200) {
                 this.setState(prev => ({ 
@@ -112,7 +113,6 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                   modalOpen: Boolean(anyFailures), 
                   errors: anyFailures ? prev.errors : []
                  }))
-                 // Save link between file and chosen api
               }
               setTimeout(() => this.getApiVisibility(), 2000)
             })

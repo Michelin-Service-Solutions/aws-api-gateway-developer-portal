@@ -30,7 +30,7 @@ function getApisWithStages(selectedApiId, selectedStage, activateFirst) {
     stage: api.stage
   }))
   const genericApiList = _.get(store, 'apiList.generic', []).map(api => ({
-    group: api.apiId || api.id,
+    group: api.belongsToApiId || api.apiId || api.id,
     id: api.stage || api.id,
     title: api.swagger.info.title,
     route: `/apis/${api.id}`,
@@ -38,7 +38,7 @@ function getApisWithStages(selectedApiId, selectedStage, activateFirst) {
       (selectedApiId && (api.id === selectedApiId || api.apiId === selectedApiId)) &&
       (!selectedStage || api.stage === selectedStage)
     ),
-    stage: api.stage
+    stage: api.belongsToApiId ? api.swagger.info.title : api.stage
   }))
 
   return _.toPairs(_.groupBy(apiGatewayApiList.concat(genericApiList), 'group'))
@@ -77,7 +77,6 @@ export default observer(function ApisMenu(props) {
     return result.length > 0
   })
 
-
   return (
     <Sidebar>
       <SidebarHeader
@@ -105,7 +104,7 @@ export default observer(function ApisMenu(props) {
             </Menu.Menu>
           </MenuLink>
         ))}
-      <SidebarHeader>API Reference</SidebarHeader>
+        <SidebarHeader>API Reference</SidebarHeader>
         {nonSubscribableApis.map(({ apis, title, group, active }) => (
           <MenuLink key={group} active={active} to={apis.length > 0 ? apis[0].route : null}>
             {title}

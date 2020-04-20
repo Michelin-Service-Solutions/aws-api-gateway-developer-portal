@@ -88,7 +88,7 @@ function getSwaggerFile (file) {
       } else {
         // if the file wasn't saved with its name as an API_STAGE key, assume it's a generic api
         console.log(`Generic Swagger definition found: ${file.Key}`)
-        const [fileHash, customFlag, apiGatewayApiId] = file.Key.split('-'); // Custom naming for custom APIs linked to and API GW Api
+        const [fileHash, customFlag, apiGatewayApiId] = file.Key.split('.')[0].split('-'); // Custom naming for custom APIs linked to and API GW Api
         if (customFlag && customFlag === 'custom' && apiGatewayApiId) {
           result.belongsToApiId = apiGatewayApiId; // This means that this docs belongs to that Api
         }
