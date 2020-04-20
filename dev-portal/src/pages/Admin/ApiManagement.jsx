@@ -450,7 +450,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       }
     })
 
-    apiList.push({
+    apiList.unshift({
       key: `NONE`,
       text: `NONE`,
       value: `NONE`,
@@ -510,7 +510,14 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                           <Form.Field>
                             <label htmlFor='files'>Select Files:</label>
                             <input type='file' id='files' name='files' accept='.json,.yaml,.yml' multiple ref={this.fileInput} />
-                            <Dropdown 
+                            <label 
+                              htmlFor='api-list' 
+                              style={{ marginTop: '5px'}}
+                            >
+                              Select the API to which the documentation belongs:
+                            </label>
+                            <Dropdown
+                              id='api-list'
                               placeholder='Apis' 
                               search 
                               selection 

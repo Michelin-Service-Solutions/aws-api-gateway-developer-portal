@@ -104,7 +104,7 @@ export default observer(function ApisMenu(props) {
             </Menu.Menu>
           </MenuLink>
         ))}
-        <SidebarHeader>API Reference</SidebarHeader>
+       {nonSubscribableApis.length > 0 && <SidebarHeader>API Reference</SidebarHeader>}
         {nonSubscribableApis.map(({ apis, title, group, active }) => (
           <MenuLink key={group} active={active} to={apis.length > 0 ? apis[0].route : null}>
             {title}
