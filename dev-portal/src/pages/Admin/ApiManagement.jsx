@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Button, Loader, Table, Modal, Form, Message, Popup, Icon, Dropdown } from 'semantic-ui-react'
+import { Button, Loader, Table, Modal, Form, Message, Popup, Icon, Dropdown, Input } from 'semantic-ui-react'
 
 import { apiGatewayClient } from 'services/api'
 import { getApi } from 'services/api-catalog'
@@ -12,7 +12,7 @@ import hash from 'object-hash'
 import { toJS } from 'mobx'
 import { observer } from 'mobx-react'
 
-function getUsagePlanVisibility (usagePlan) {
+function getUsagePlanVisibility(usagePlan) {
   let hasHidden = false
   let hasVisible = false
 
@@ -30,16 +30,23 @@ function getUsagePlanVisibility (usagePlan) {
 }
 
 export const ApiManagement = observer(class ApiManagement extends React.Component {
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       modalOpen: false,
+      newApiModalOpen: false,
       errors: [],
       apisUpdating: [],
       apiSelected: '',
+      apiHost: '',
+      apiName: '',
+      loadingFile: false,
+      fileErrors: false,
+      swaggerFile: {},
     }
 
     this.fileInput = React.createRef()
+    this.newAPIFileInput = React.createRef()
 
     this.tableSort = (first, second) => {
       if (first.name !== second.name) {
@@ -69,11 +76,76 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.getApiVisibility()
   }
 
-  uploadAPISpec (event) {
+  // This methods create a new API Gateway API
+  uploadNewAPIFile(event) {
+    event.preventDefault()
+    const files = this.newAPIFileInput.current.inputRef.current.files
+    let swagger, swaggerObject, anyFailures
+
+    this.setState(prev => ({ ...prev, loadingFile: true }))
+    if (files.length > 0) {
+      this.setState(prev => ({ ...prev, errors: [] }))
+        ;[].forEach.call(files, file => {
+
+          const reader = new window.FileReader()
+
+          reader.onload = (e) => {
+            if (file.name.includes('yaml')) {
+              swaggerObject = YAML.parse(e.target.result)
+              swagger = JSON.stringify(swaggerObject)
+            } else {
+              swaggerObject = JSON.parse(e.target.result)
+              swagger = JSON.stringify(swaggerObject)
+            }
+            console.log(swaggerObject)
+            if (!(swaggerObject.info && swaggerObject.info.title && swaggerObject.host && swaggerObject.basePath)) {
+              anyFailures = true
+              this.setState(prev => ({ ...prev, fileErrors: true, loadingFile: false, }))
+              return
+            }
+
+            this.setState(prev => ({
+              ...prev,
+              apiHost: swaggerObject.host + swaggerObject.basePath,
+              apiName: swaggerObject.info.title,
+              fileErrors: false,
+              loadingFile: false,
+              swaggerFile: swaggerObject,
+            }))
+
+          }
+          reader.readAsText(file)
+        })
+    }
+  }
+
+  createAPIGatewayAPI() {
+    const { swaggerFile, apiName, apiHost } = this.state
+    apiGatewayClient()
+      .then((app) => app.post('/api-from-swagger', {}, {
+        jsonSpec: swaggerFile,
+        apiName,
+        host: apiHost
+      }, {}))
+      .then((res) => {
+        if (res.status === 200) {
+          console.log('API Created')
+        } else {
+          console.log(res.status)
+          console.log(res.data.message)
+        }
+      }).catch((e) => {
+        console.log(e.status)
+        console.log(e.data)
+      })
+  }
+
+  // This method upload a API specification to S3
+  uploadAPISpec(event) {
     event.preventDefault()
     console.log(this.fileInput.current.files)
     const files = this.fileInput.current.files
@@ -81,48 +153,48 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
 
     if (files.length > 0) {
       this.setState(prev => ({ ...prev, errors: [] }))
-      ;[].forEach.call(files, file => {
-        const reader = new window.FileReader()
+        ;[].forEach.call(files, file => {
+          const reader = new window.FileReader()
 
-        reader.onload = (e) => {
-          if (file.name.includes('yaml')) {
-            swaggerObject = YAML.parse(e.target.result)
-            swagger = JSON.stringify(swaggerObject)
-          } else {
-            swaggerObject = JSON.parse(e.target.result)
-            swagger = JSON.stringify(swaggerObject)
+          reader.onload = (e) => {
+            if (file.name.includes('yaml')) {
+              swaggerObject = YAML.parse(e.target.result)
+              swagger = JSON.stringify(swaggerObject)
+            } else {
+              swaggerObject = JSON.parse(e.target.result)
+              swagger = JSON.stringify(swaggerObject)
+            }
+
+            if (!(swaggerObject.info && swaggerObject.info.title)) {
+              anyFailures = true
+              this.setState(prev => ({ ...prev, errors: [...prev.errors, file.name] }))
+              return
+            }
+
+            if (anyFailures) {
+              return
+            }
+            const { apiSelected } = this.state;
+
+            apiGatewayClient()
+              .then((app) => app.post('/admin/catalog/visibility', {}, { swagger, apiSelected }, {}))
+              .then((res) => {
+                if (res.status === 200) {
+                  this.setState(prev => ({
+                    ...prev,
+                    modalOpen: Boolean(anyFailures),
+                    errors: anyFailures ? prev.errors : []
+                  }))
+                }
+                setTimeout(() => this.getApiVisibility(), 2000)
+              })
           }
-
-          if (!(swaggerObject.info && swaggerObject.info.title)) {
-            anyFailures = true
-            this.setState(prev => ({ ...prev, errors: [...prev.errors, file.name] }))
-            return
-          }
-
-          if (anyFailures) {
-            return
-          }
-          const { apiSelected } = this.state;
-
-          apiGatewayClient()
-            .then((app) => app.post('/admin/catalog/visibility', {}, { swagger, apiSelected }, {}))
-            .then((res) => {
-              if (res.status === 200) {
-                this.setState(prev => ({ 
-                  ...prev, 
-                  modalOpen: Boolean(anyFailures), 
-                  errors: anyFailures ? prev.errors : []
-                 }))
-              }
-              setTimeout(() => this.getApiVisibility(), 2000)
-            })
-        }
-        reader.readAsText(file)
-      })
+          reader.readAsText(file)
+        })
     }
   }
 
-  deleteAPISpec (apiId) {
+  deleteAPISpec(apiId) {
     getApi(apiId, false, undefined, true).then(api => {
       const _api = toJS(api)
       const myHash = hash(_api.swagger)
@@ -135,7 +207,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     })
   }
 
-  getApiVisibility () {
+  getApiVisibility() {
     apiGatewayClient()
       .then(app => app.get('/admin/catalog/visibility', {}, {}, {}))
       .then(res => {
@@ -169,7 +241,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       })
   }
 
-  updateLocalApiGatewayApis (apisList, updatedApi, parity) {
+  updateLocalApiGatewayApis(apisList, updatedApi, parity) {
     const updatedApis = apisList.map(stateApi => {
       if (stateApi.id === updatedApi.id && stateApi.stage === updatedApi.stage) {
         if (parity !== undefined && (parity === true || parity === false)) {
@@ -184,7 +256,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     store.visibility = { generic: store.visibility.generic, apiGateway: updatedApis }
   }
 
-  showApiGatewayApi (api) {
+  showApiGatewayApi(api) {
     apiGatewayClient()
       .then(app => app.post('/admin/catalog/visibility', {}, { apiKey: `${api.id}_${api.stage}`, subscribable: `${api.subscribable}` }, {}))
       .then((res) => {
@@ -194,7 +266,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       })
   }
 
-  hideApiGatewayApi (api) {
+  hideApiGatewayApi(api) {
     if (!api.subscribable && !api.id && !api.stage) {
       this.deleteAPISpec(api.genericId)
     } else {
@@ -208,7 +280,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     }
   }
 
-  showAllApiGatewayApis (usagePlan) {
+  showAllApiGatewayApis(usagePlan) {
     Promise.all(usagePlan.apis.map((api) =>
       apiGatewayClient()
         .then(app => app.post('/admin/catalog/visibility', {}, {
@@ -225,7 +297,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     })
   }
 
-  hideAllApiGatewayApis (usagePlan) {
+  hideAllApiGatewayApis(usagePlan) {
     Promise.all(usagePlan.apis.map((api) =>
       apiGatewayClient()
         .then(app => app.delete(`/admin/catalog/visibility/${api.id}_${api.stage}`, {}, {}, {}))
@@ -239,11 +311,11 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     })
   }
 
-  isUpdatingApiGatewayApi (api) {
+  isUpdatingApiGatewayApi(api) {
     return this.state.apisUpdating.includes(`${api.id}_${api.stage}`)
   }
 
-  updateApiGatewayApi (api) {
+  updateApiGatewayApi(api) {
     // Simpler than implementing a multiset, and probably also faster.
     this.setState(({ apisUpdating }) => ({
       apisUpdating: [...apisUpdating, `${api.id}_${api.stage}`]
@@ -258,11 +330,11 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       }))
   }
 
-  isSdkGenerationConfigurable (api) {
+  isSdkGenerationConfigurable(api) {
     return api.visibility
   }
 
-  toggleSdkGeneration (apisList, updatedApi) {
+  toggleSdkGeneration(apisList, updatedApi) {
     apiGatewayClient()
       .then(app => {
         if (updatedApi.sdkGeneration) {
@@ -285,7 +357,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       })
   }
 
-  renderHeaderVisibilityButton (usagePlan) {
+  renderHeaderVisibilityButton(usagePlan) {
     const usagePlanVisibility = getUsagePlanVisibility(usagePlan)
 
     // Some APIs are visible, some are hidden. Show the current state (Partial, with a warning) and enable all on click
@@ -323,7 +395,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     )
   }
 
-  sortByUsagePlan () {
+  sortByUsagePlan() {
     if (!store.visibility.apiGateway) { return this.renderNoApis() }
 
     const usagePlans =
@@ -364,7 +436,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     )
   }
 
-  renderNoApis () {
+  renderNoApis() {
     return (
       <Table.Row>
         <Table.Cell colSpan='4'>
@@ -374,7 +446,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     )
   }
 
-  renderHeader (usagePlan) {
+  renderHeader(usagePlan) {
     return (
       <Table.Row style={{ backgroundColor: '#1678c2', color: 'white' }}>
         <Table.Cell colSpan='3'>
@@ -390,7 +462,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     )
   }
 
-  renderApiList (apis) {
+  renderApiList(apis) {
     return <>
       {apis.filter(api => api.id !== window.config.restApiId).map(api => (
         <React.Fragment key={api.stage ? `${api.id}_${api.stage}` : api.id}>
@@ -437,11 +509,11 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
     </>
   }
 
-  handleDropdownApiChange (e, { value }) {
+  handleDropdownApiChange(e, { value }) {
     this.setState(prev => ({ ...prev, apiSelected: value }))
   }
 
-  render () {
+  render() {
     const apiList = store.visibility.apiGateway.map(api => {
       return {
         key: `${api.name}_${api.stage}`,
@@ -482,10 +554,72 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
         </div>
 
         <div style={{ padding: '2em' }}>
+          <Modal
+            closeIcon
+            closeOnEscape
+            closeOnDimmerClick
+            onClose={() => this.setState((prev) => ({ ...prev, newApiModalOpen: false }))}
+            trigger={
+              <Button
+                primary
+                style={{ marginBottom: '1em' }}
+                onClick={() => this.setState((prev) => ({ ...prev, newApiModalOpen: true }))}
+              >
+                New API
+              </Button>
+            }
+            open={this.state.newApiModalOpen}
+          >
+            <Modal.Header>Create new API</Modal.Header>
+            <Modal.Content>
+              <>
+                <Form onSubmit={(e) => this.createAPIGatewayAPI(e)}>
+                  {
+                    this.state.fileErrors && (
+                      <div class="ui negative message">
+                        <div class="header">
+                          Swagger File Error
+                        </div>
+                        <p>Make sure the swagger file has: host, info with title</p>
+                      </div>)
+                  }
+                  <Form.Field>
+                    <label htmlFor='files'>Select File:</label>
+                    <Input
+                      type='file'
+                      id='files'
+                      name='files'
+                      accept='.json,.yaml,.yml'
+                      ref={this.newAPIFileInput}
+                      loading={this.state.loadingFile}
+                      onChange={(e) => this.uploadNewAPIFile(e)}
+                    />
+                    <label htmlFor='api-host'>Host:</label>
+                    <input
+                      type='text'
+                      id='api-host'
+                      name='api-host'
+                      defaultValue={this.state.apiHost}
+                      onChange={(e) => this.setState({ apiHost: e.target.value })}
+                    />
+                    <label htmlFor='api-name'>API name:</label>
+                    <input
+                      type='text'
+                      id='api-name'
+                      name='api-name'
+                      defaultValue={this.state.apiName}
+                      onChange={(e) => this.setState({ apiName: e.target.value })}
+                    />
+                  </Form.Field>
+                  <Button type='submit'>Create</Button>
+                </Form>
+              </>
+            </Modal.Content>
+          </Modal>
           <Table celled collapsing>
             <Table.Header fullWidth>
               <Table.Row>
-                <Table.HeaderCell colSpan='4'>Generic APIs</Table.HeaderCell>
+                <Table.HeaderCell colSpan='4'>Custom documentation</Table.HeaderCell>
               </Table.Row>
             </Table.Header>
             <Table.Header fullWidth>
@@ -498,7 +632,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                     onClose={() => this.setState((prev) => ({ ...prev, modalOpen: false }))}
                     trigger={
                       <Button floated='right' onClick={() => this.setState((prev) => ({ ...prev, modalOpen: true }))}>
-                        Add API
+                        Add Documentation
                       </Button>
                     }
                     open={this.state.modalOpen}
@@ -510,17 +644,17 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                           <Form.Field>
                             <label htmlFor='files'>Select Files:</label>
                             <input type='file' id='files' name='files' accept='.json,.yaml,.yml' multiple ref={this.fileInput} />
-                            <label 
-                              htmlFor='api-list' 
-                              style={{ marginTop: '5px'}}
+                            <label
+                              htmlFor='api-list'
+                              style={{ marginTop: '5px' }}
                             >
                               Select the API to which the documentation belongs:
                             </label>
                             <Dropdown
                               id='api-list'
-                              placeholder='Apis' 
-                              search 
-                              selection 
+                              placeholder='APIs'
+                              search
+                              selection
                               options={apiList}
                               onChange={(e, { value }) => this.setState(prev => (
                                 { ...prev, apiSelected: value }
