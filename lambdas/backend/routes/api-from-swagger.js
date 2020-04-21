@@ -34,15 +34,30 @@ async function createResourcePath(dataApi, parentId, fullpath) {
     return parentId;
 }
 
+function createRequestParameters(method) {
+    console.log('METHOD OBJECT ', method);
+    if (!method.parameters || method.parameters.length === 0) return {};
+    let requestParameters = {};
+
+    method.parameters.forEach(param => {
+        const paramType = param.in === 'query' ? 'querystring' :
+        param.in === 'path' ? 'path' : 'header';
+        const isRequired = !!param.required;
+        requestParameters[`method.request.${paramType}.${param.name}`] = isRequired;
+    });
+    return requestParameters;
+}
+
 async function createMethods(dataApi, resourceId, methods, uri) {
     for (let index = 0; index < methods.length; index++) {
         const method = methods[index][0].toUpperCase();
-
+        const methodObject = methods[index][1];
         const params = {
             restApiId: dataApi,
             resourceId: resourceId,
             httpMethod: method,
-            authorizationType: 'NONE'
+            authorizationType: 'NONE',
+            requestParameters: createRequestParameters(methodObject)
         };
 
         console.log(`-- ${method}`);
@@ -103,6 +118,16 @@ function pluck(array, key) {
     return array.map(o => o[key]);
 }
 
+async function deployEnvironment(apiId, environment, host) {
+    const params = {
+        restApiId: apiId,
+        stageName: environment,
+        variables: {
+            host
+        }
+    }
+    await apigateway.createDeployment(params).promise();
+}
 
 async function createAPI(name) {
 
@@ -117,6 +142,8 @@ exports.post = async (req, res) => {
     const apiName = req.body.apiName;
     const jsonSpec = req.body.jsonSpec;
     const host = req.body.host;
+    const environment = req.body.environment;
+    const baseUri = 'https://${stageVariables.host}'
 
     // First create the API in Api Gateway
     const { apiId, rootPathId } = await createAPI(apiName);
@@ -127,7 +154,10 @@ exports.post = async (req, res) => {
     for (let index = 0; index < names.length; index++) {
         const path = names[index]
         console.log('creating resources for: ' + path); 
-        await createResources(apiId, rootPathId, path, host, jsonPaths[path]);
+        await createResources(apiId, rootPathId, path, baseUri, jsonPaths[path]);
+    }
+    if (environment) {
+        await deployEnvironment(apiId, environment, host);
     }
     res.status(200).send({
         success: true,
