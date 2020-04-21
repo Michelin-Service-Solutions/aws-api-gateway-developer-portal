@@ -67,6 +67,9 @@ app.put('/accounts/:userId/promoteToAdmin', wrapError(require('./routes/accounts
 // app.delete('/accounts/:userId', handlers.deleteAccount)
 app.delete('/accounts/:userId', wrapError(require('./routes/accounts').delete))
 
+// Create API from Swagger specification
+app.post('/api-from-swagger', wrapError(require('./routes/api-from-swagger').post));
+
 const server = awsServerlessExpress.createServer(app)
 
 exports.handler = (event, context) => awsServerlessExpress.proxy(server, event, context)
