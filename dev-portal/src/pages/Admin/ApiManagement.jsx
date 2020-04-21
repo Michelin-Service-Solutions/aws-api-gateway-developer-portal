@@ -102,15 +102,22 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
               swagger = JSON.stringify(swaggerObject)
             }
             console.log(swaggerObject)
-            if (!(swaggerObject.info && swaggerObject.info.title && swaggerObject.host && swaggerObject.basePath)) {
+            if (!(swaggerObject.info && swaggerObject.info.title && swaggerObject.host)) {
               anyFailures = true
-              this.setState(prev => ({ ...prev, fileErrors: true, loadingFile: false, }))
+              this.setState(prev => ({ 
+                ...prev, 
+                fileErrors: true, 
+                loadingFile: false,
+                apiHost: '',
+                apiName: '',
+                swaggerFile: {}
+              }))
               return
             }
-
+            const host = swaggerObject.basePath ? swaggerObject.host + swaggerObject.basePath : swaggerObject.host
             this.setState(prev => ({
               ...prev,
-              apiHost: swaggerObject.host + swaggerObject.basePath,
+              apiHost: host,
               apiName: swaggerObject.info.title,
               fileErrors: false,
               loadingFile: false,
@@ -192,6 +199,17 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
           reader.readAsText(file)
         })
     }
+  }
+
+  closeApiModal() {
+    this.setState({
+      newApiModalOpen: false,
+      fileErrors: false, 
+      loadingFile: false,
+      apiHost: '',
+      apiName: '',
+      swaggerFile: {}
+    })
   }
 
   deleteAPISpec(apiId) {
@@ -558,7 +576,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
             closeIcon
             closeOnEscape
             closeOnDimmerClick
-            onClose={() => this.setState((prev) => ({ ...prev, newApiModalOpen: false }))}
+            onClose={() => this.closeApiModal()}
             trigger={
               <Button
                 primary
