@@ -148,17 +148,26 @@ exports.post = async (req, res) => {
     // First create the API in Api Gateway
     const { apiId, rootPathId } = await createAPI(apiName);
 
-    const jsonPaths = jsonSpec.paths;
-    const paths = objToarray(jsonPaths || {});
-    const names = pluck(paths, 0).sort();
-    for (let index = 0; index < names.length; index++) {
-        const path = names[index]
-        console.log('creating resources for: ' + path); 
-        await createResources(apiId, rootPathId, path, baseUri, jsonPaths[path]);
-    }
-    if (environment) {
-        await deployEnvironment(apiId, environment, host);
-    }
+    // Then create all its resources
+    try {
+        const jsonPaths = jsonSpec.paths;
+        const paths = objToarray(jsonPaths || {});
+        const names = pluck(paths, 0).sort();
+        for (let index = 0; index < names.length; index++) {
+            const path = names[index]
+            console.log('creating resources for: ' + path); 
+            await createResources(apiId, rootPathId, path, baseUri, jsonPaths[path]);
+        }
+        // Then deploy the environment
+        if (environment) {
+            await deployEnvironment(apiId, environment, host);
+        }
+    } catch(e) {
+        // If something failed lets delete the API
+        await apigateway.deleteRestApi({ restApiId: apiId }).promise();
+        throw (e); // This error will be catched by the wrapError function
+    }   
+
     res.status(200).send({
         success: true,
         apiId
