@@ -43,6 +43,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       apiEnv: '',
       loadingFile: false,
       fileErrors: false,
+      errorMessage: '',
       swaggerFile: {},
     }
 
@@ -106,6 +107,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
             } catch (e) {
               this.setState({
                 fileErrors: true,
+                errorMessage: 'Invalid JSON file',
                 loadingFile: false
               })
               return
@@ -139,12 +141,16 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       .then((res) => {
         if (res.status === 200) {
           console.log('API Created')
-          this.setState({ newApiModalOpen: false })
+          this.closeApiModal()
         } else {
           console.log(res.status)
           console.log(res.data.message)
         }
       }).catch((e) => {
+        this.setState(prev => ({ ...prev, 
+          fileErrors: true, 
+          errorMessage: e.data.message
+        }))
         console.log(e.status)
         console.log(e.data)
       })
@@ -595,7 +601,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                   {
                     this.state.fileErrors && (
                       <Message negative>
-                        <Message.Header>Invalid JSON file</Message.Header>
+                        <Message.Header>{this.state.errorMessage}</Message.Header>
                       </Message>
                     )
                   }
