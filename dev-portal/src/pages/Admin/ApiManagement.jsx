@@ -40,6 +40,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       apiSelected: '',
       apiHost: '',
       apiName: '',
+      apiEnv: '',
       loadingFile: false,
       fileErrors: false,
       swaggerFile: {},
@@ -94,32 +95,28 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
           const reader = new window.FileReader()
 
           reader.onload = (e) => {
-            if (file.name.includes('yaml')) {
-              swaggerObject = YAML.parse(e.target.result)
-              swagger = JSON.stringify(swaggerObject)
-            } else {
-              swaggerObject = JSON.parse(e.target.result)
-              swagger = JSON.stringify(swaggerObject)
-            }
-            console.log(swaggerObject)
-            if (!(swaggerObject.info && swaggerObject.info.title && swaggerObject.host)) {
-              anyFailures = true
-              this.setState(prev => ({ 
-                ...prev, 
-                fileErrors: true, 
-                loadingFile: false,
-                apiHost: '',
-                apiName: '',
-                swaggerFile: {}
-              }))
+            try {
+              if (file.name.includes('yaml')) {
+                swaggerObject = YAML.parse(e.target.result)
+                swagger = JSON.stringify(swaggerObject)
+              } else {
+                swaggerObject = JSON.parse(e.target.result)
+                swagger = JSON.stringify(swaggerObject)
+              }
+            } catch (e) {
+              this.setState({
+                fileErrors: true,
+                loadingFile: false
+              })
               return
             }
+
+
             const host = swaggerObject.basePath ? swaggerObject.host + swaggerObject.basePath : swaggerObject.host
             this.setState(prev => ({
               ...prev,
               apiHost: host,
               apiName: swaggerObject.info.title,
-              fileErrors: false,
               loadingFile: false,
               swaggerFile: swaggerObject,
             }))
@@ -131,16 +128,18 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
   }
 
   createAPIGatewayAPI() {
-    const { swaggerFile, apiName, apiHost } = this.state
+    const { swaggerFile, apiName, apiHost, apiEnv } = this.state
     apiGatewayClient()
       .then((app) => app.post('/api-from-swagger', {}, {
         jsonSpec: swaggerFile,
         apiName,
-        host: apiHost
+        host: apiHost,
+        environment: apiEnv,
       }, {}))
       .then((res) => {
         if (res.status === 200) {
           console.log('API Created')
+          this.setState({ newApiModalOpen: false })
         } else {
           console.log(res.status)
           console.log(res.data.message)
@@ -204,10 +203,11 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
   closeApiModal() {
     this.setState({
       newApiModalOpen: false,
-      fileErrors: false, 
+      fileErrors: false,
       loadingFile: false,
       apiHost: '',
       apiName: '',
+      apiEnv: '',
       swaggerFile: {}
     })
   }
@@ -594,12 +594,10 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                 <Form onSubmit={(e) => this.createAPIGatewayAPI(e)}>
                   {
                     this.state.fileErrors && (
-                      <div class="ui negative message">
-                        <div class="header">
-                          Swagger File Error
-                        </div>
-                        <p>Make sure the swagger file has: host, info with title</p>
-                      </div>)
+                      <Message negative>
+                        <Message.Header>Invalid JSON file</Message.Header>
+                      </Message>
+                    )
                   }
                   <Form.Field>
                     <label htmlFor='files'>Select File:</label>
@@ -627,6 +625,14 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                       name='api-name'
                       defaultValue={this.state.apiName}
                       onChange={(e) => this.setState({ apiName: e.target.value })}
+                    />
+                    <label htmlFor='api-env'>API Environment:</label>
+                    <input
+                      type='text'
+                      id='api-env'
+                      name='api-env'
+                      defaultValue={this.state.apiEnv}
+                      onChange={(e) => this.setState({ apiEnv: e.target.value })}
                     />
                   </Form.Field>
                   <Button type='submit'>Create</Button>
