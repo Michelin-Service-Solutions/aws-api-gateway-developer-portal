@@ -86,6 +86,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
   uploadNewAPIFile(event) {
     event.preventDefault()
     const files = this.newAPIFileInput.current.inputRef.current.files
+    //this.newAPIFileInput = null;
     let swagger, swaggerObject, anyFailures
 
     this.setState(prev => ({ ...prev, loadingFile: true }))
@@ -147,8 +148,9 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
           console.log(res.data.message)
         }
       }).catch((e) => {
-        this.setState(prev => ({ ...prev, 
-          fileErrors: true, 
+        this.setState(prev => ({
+          ...prev,
+          fileErrors: true,
           errorMessage: e.data.message
         }))
         console.log(e.status)
@@ -615,6 +617,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                       ref={this.newAPIFileInput}
                       loading={this.state.loadingFile}
                       onChange={(e) => this.uploadNewAPIFile(e)}
+                      onClick={(e) => e.target.value = null}
                     />
                     <label htmlFor='api-host'>Host:</label>
                     <input
