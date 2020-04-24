@@ -19,7 +19,7 @@ const replaceAll = function (originalStr, searchStr , replaceStr) {
 // For instance it converts event.uri:
 // /users/{id} into /users/1
 
-const getCallUri = function(pathParams, uri) {
+const replacePathParams = function(pathParams, uri) {
   let callUri = uri;
   Object.keys(pathParams).forEach(function (pathParam, index) {
     const replaceValue = `{${pathParam}}`;
@@ -35,9 +35,10 @@ const appendQueryParams = function(uri, queryParams) {
     return finalUri.toString();
 }
 
-const callApi = async function (uri, method, bodyPayload, queryParams, headers) {
+const callApi = async function (uri, pathParams, method, bodyPayload, queryParams, headers) {
     const body = (method !== "GET" && method !== "HEAD") ? bodyPayload : null;
-    const finalUri = appendQueryParams(uri, queryParams);
+    let finalUri = replacePathParams(pathParams, uri);
+    finalUri = appendQueryParams(finalUri, queryParams);
     const apiResponse = await fetch(finalUri,{ method, body, headers, agent: httpsAgent });
     return apiResponse.json(); // revisar content type, si es JSON parseamos, si no proxy
 }
@@ -57,11 +58,10 @@ exports.handler = async (event,context,callback) => {
     }
     
     //call realAPI with response
-    let callUri = getCallUri(event.pathParams, event.uri);
-    const json = await callApi(callUri, event.method, event.body, event.queryParams, event.headers);
+    const apiResponse = await callApi(event.uri, event.pathParams, event.method, event.body, event.queryParams, event.headers);
     
     // after
-    payload = json;
+    payload = apiResponse;
     response = payload;
     try {
         for (var _i = 0; _i < event.hooksAfter.length; _i++) {
