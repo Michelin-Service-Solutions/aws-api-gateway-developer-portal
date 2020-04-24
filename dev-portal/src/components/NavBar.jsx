@@ -12,7 +12,7 @@ import {
   getLoginRedirectUrl
 } from 'services/self'
 
-import { AppBar, Avatar, IconButton, NotificationsIcon, Button } from '@michelin/acid-components'
+import { AppBar, UserAvatar, IconButton, NotificationsIcon, Button } from '@michelin/acid-components'
 
 
 import { cognitoDomain, cognitoClientId } from '../services/api'
@@ -37,14 +37,14 @@ export const NavBar = observer(
     render() {
       return (
         <AppBar fixed={true}>
-          {/* <Avatar src='https://www.google.com/url?sa=i&url=https%3A%2F%2Fes.m.wikipedia.org%2Fwiki%2FArchivo%3AImage_created_with_a_mobile_phone.png&psig=AOvVaw2_WD4BNUCvl2PW5EQB5J3b&ust=1587841574386000&source=images&cd=vfe&ved=0CAIQjRxqFwoTCNCLrfrggekCFQAAAAAdAAAAABAD' style={{ width: '4rem', height: '4rem', marginRight: '1rem' }} /> */}
+          <UserAvatar name={'ayelen'} email={'ayelen'} description={'description'} image={''} color={'default'} avatarPosition={'left'} />
           <div style={{ display: 'inline-block', flexGrow: 1 }}>
             <span style={{ fontWeight: 700, marginRight: '.5rem' }}>Michelin OnCall 2.0</span>
             <span>AppBar Example</span>
           </div>
-          {/* <IconButton color='success' variant='contained' style={{ marginRight: '1rem' }}>
-            <NotificationsIcon />
-          </IconButton> */}
+          <IconButton color='success' variant='contained' style={{ marginRight: '1rem' }}>
+            {/* <NotificationsIcon /> */}
+          </IconButton>
           <Button size='small'>Login</Button>
         </AppBar>
       )
