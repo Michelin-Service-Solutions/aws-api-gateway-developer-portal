@@ -79,6 +79,7 @@ async function createIntegrationProxy(dataApi, resourceId, method, uri) {
         integrationHttpMethod: 'POST',
         type: "AWS",
         uri: `arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${lambdaFunction}/invocations`,
+        passthroughBehavior: 'WHEN_NO_TEMPLATES',
         requestTemplates: {
             'application/json' : 
                 ` { "body" : $input.json('$'),
@@ -129,7 +130,7 @@ async function createResources(apiId, rootPathId, fullpath, baseUri, methods) {
     var resourceId = await createResourcePath(apiId, rootPathId, fullpath.split('/').slice(1));
 
     if (!fullpath.startsWith('/')) fullpath = `/${fullpath}`;
-    
+
     console.log('Creating method for path :'+fullpath);
 
     await createMethods(apiId, resourceId, objToarray(methods), baseUri + fullpath);
