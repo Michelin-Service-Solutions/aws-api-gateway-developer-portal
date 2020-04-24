@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Button, Loader, Table, Modal, Form, Message, Popup, Icon, Dropdown, Input } from 'semantic-ui-react'
+import { Button, Loader, Table, Modal, Form, Message, Popup, Icon, Dropdown, Input, TextArea } from 'semantic-ui-react'
 
 import { apiGatewayClient } from 'services/api'
 import { getApi } from 'services/api-catalog'
@@ -29,6 +29,31 @@ function getUsagePlanVisibility(usagePlan) {
   return hasVisible
 }
 
+const defaultMappingTemplate = `{ 
+  "body" : $input.json('$'),
+  "method": "$context.httpMethod",
+  "headers": {
+      #foreach($param in $input.params().header.keySet())
+      "$param": "$util.escapeJavaScript($input.params().header.get($param))" #if($foreach.hasNext),#end
+      #end  
+  },
+  "pathParams": {
+      #foreach($param in $input.params().path.keySet())
+      "$param": "$util.escapeJavaScript($input.params().path.get($param))" #if($foreach.hasNext),#end
+      #end
+  },
+  "queryParams": {
+      #foreach($queryParam in $input.params().querystring.keySet())
+      "$queryParam": "$util.escapeJavaScript($input.params().querystring.get($queryParam))" #if($foreach.hasNext),#end
+    #end
+  },
+  "hooksBefore": [],
+  "hooksAfter": [],
+  "uri": {{DO_NOT_REPLACE}}
+}
+`
+
+
 export const ApiManagement = observer(class ApiManagement extends React.Component {
   constructor(props) {
     super(props)
@@ -41,6 +66,7 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       apiHost: '',
       apiName: '',
       apiEnv: '',
+      apiMappingTemplate: defaultMappingTemplate,
       loadingFile: false,
       fileErrors: false,
       errorMessage: '',
@@ -131,22 +157,23 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
   }
 
   createAPIGatewayAPI() {
-    const { swaggerFile, apiName, apiHost, apiEnv } = this.state
+    const { swaggerFile, apiName, apiHost, apiEnv, apiMappingTemplate } = this.state
     apiGatewayClient()
       .then((app) => app.post('/api-from-swagger', {}, {
         jsonSpec: swaggerFile,
         apiName,
         host: apiHost,
         environment: apiEnv,
+        mappingTemplate: apiMappingTemplate
       }, {}))
       .then((res) => {
         if (res.status === 200) {
           console.log('API Created')
-          this.closeApiModal()
         } else {
           console.log(res.status)
           console.log(res.data.message)
         }
+        this.closeApiModal()
       }).catch((e) => {
         this.setState(prev => ({
           ...prev,
@@ -642,6 +669,12 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
                       name='api-env'
                       defaultValue={this.state.apiEnv}
                       onChange={(e) => this.setState({ apiEnv: e.target.value })}
+                    />
+                    <label htmlFor='api-mapping-template'>Mapping Template (application/json):</label>
+                    <TextArea 
+                      defaultValue={this.state.apiMappingTemplate}
+                      style={{ minHeight: 150 }}
+                      onChange={(e) => this.setState({ apiMappingTemplate: e.target.value })}
                     />
                   </Form.Field>
                   <Button type='submit'>Create</Button>
