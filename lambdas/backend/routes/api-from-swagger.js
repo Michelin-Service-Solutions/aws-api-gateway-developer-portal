@@ -48,7 +48,7 @@ function createRequestParameters(method) {
     return requestParameters;
 }
 
-async function createMethods(dataApi, resourceId, methods, uri) {
+async function createMethods(dataApi, resourceId, methods, uri, mappingTemplate) {
     for (let index = 0; index < methods.length; index++) {
         const method = methods[index][0].toUpperCase();
         const methodObject = methods[index][1];
@@ -65,35 +65,78 @@ async function createMethods(dataApi, resourceId, methods, uri) {
         await apigateway.putMethod(params).promise();
 
         //put-method --rest-api-id vh5shnoi47 --resource-id 2vw3hk --http-method ANY --authorization-type "NONE"
-        await createIntegrationProxy(dataApi, resourceId, method, uri);
+        await createIntegrationProxy(dataApi, resourceId, method, uri, mappingTemplate);
 
     }
 }
 
-async function createIntegrationProxy(dataApi, resourceId, method, uri) {
-
+async function createIntegrationProxy(dataApi, resourceId, method, uri, mappingTemplate) {
+    const lambdaFunction = 'arn:aws:lambda:us-east-1:540573004174:function:dev-portal-lambda-proxy';
+    const defaultMappingTemplate = `{ 
+        "body" : $input.json('$'),
+        "method": "$context.httpMethod",
+        "headers": {
+            #foreach($param in $input.params().header.keySet())
+            "$param": "$util.escapeJavaScript($input.params().header.get($param))" #if($foreach.hasNext),#end
+            #end  
+        },
+        "pathParams": {
+            #foreach($param in $input.params().path.keySet())
+            "$param": "$util.escapeJavaScript($input.params().path.get($param))" #if($foreach.hasNext),#end
+        
+            #end
+        },
+        "queryParams": {
+            #foreach($queryParam in $input.params().querystring.keySet())
+            "$queryParam": "$util.escapeJavaScript($input.params().querystring.get($queryParam))" #if($foreach.hasNext),#end
+        
+            #end
+        },
+        "hooksBefore": [],
+        "hooksAfter": [],
+        "uri": "${uri}" }
+        `;
+    
     const params = {
         restApiId: dataApi,
         resourceId: resourceId,
         httpMethod: method,
-        integrationHttpMethod: method,
-        type: "HTTP_PROXY",
-        uri: uri
+        integrationHttpMethod: 'POST',
+        type: "AWS",
+        uri: `arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${lambdaFunction}/invocations`,
+        passthroughBehavior: 'WHEN_NO_TEMPLATES',
+        requestTemplates: {
+            'application/json' : mappingTemplate ? mappingTemplate.replace('{{DO_NOT_REPLACE}}', `"${uri}"`) : defaultMappingTemplate
+                
+        },
+        credentials: 'arn:aws:iam::540573004174:role/dev-portal-lamdba-execution'
     };
 
     //--rest-api-id vh5shnoi47  --resource-id 2vw3hk --http-method ANY --integration-http-method ANY --type HTTP_PROXY --uri https://api.integration.misp-solutions.com
     await apigateway.putIntegration(params).promise();
+
+    // Add 200 response 
+    const responseParams = {
+        restApiId: dataApi,
+        resourceId: resourceId,
+        httpMethod: method,
+        statusCode: '200'
+    }
+    await apigateway.putMethodResponse(responseParams).promise();
+    await apigateway.putIntegrationResponse(responseParams).promise();
 }
 
 
-async function createResources(apiId, rootPathId, fullpath, baseUri, methods) {
+async function createResources(apiId, rootPathId, fullpath, baseUri, methods, mappingTemplate) {
     // ['/pet/coco',{put,get,etc}]
 
     var resourceId = await createResourcePath(apiId, rootPathId, fullpath.split('/').slice(1));
 
+    if (!fullpath.startsWith('/')) fullpath = `/${fullpath}`;
+
     console.log('Creating method for path :'+fullpath);
-    //     //methods= [ put,get]
-    await createMethods(apiId, resourceId, objToarray(methods), baseUri + fullpath);
+
+    await createMethods(apiId, resourceId, objToarray(methods), baseUri + fullpath, mappingTemplate);
 
     return true;
 }
@@ -141,9 +184,9 @@ async function createAPI(name) {
 exports.post = async (req, res) => {
     const apiName = req.body.apiName;
     const jsonSpec = req.body.jsonSpec;
-    const host = req.body.host;
+    const baseUri = req.body.host;
+    const mappingTemplate = req.body.mappingTemplate;
     const environment = req.body.environment;
-    const baseUri = 'https://${stageVariables.host}'
 
     // First create the API in Api Gateway
     const { apiId, rootPathId } = await createAPI(apiName);
@@ -156,11 +199,11 @@ exports.post = async (req, res) => {
         for (let index = 0; index < names.length; index++) {
             const path = names[index]
             console.log('creating resources for: ' + path); 
-            await createResources(apiId, rootPathId, path, baseUri, jsonPaths[path]);
+            await createResources(apiId, rootPathId, path, baseUri, jsonPaths[path], mappingTemplate);
         }
         // Then deploy the environment
         if (environment) {
-            await deployEnvironment(apiId, environment, host);
+            await deployEnvironment(apiId, environment, baseUri);
         }
     } catch(e) {
         // If something failed lets delete the API
