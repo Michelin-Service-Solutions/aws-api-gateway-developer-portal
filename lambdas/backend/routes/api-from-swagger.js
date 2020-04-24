@@ -88,6 +88,18 @@ async function createIntegrationProxy(dataApi, resourceId, method, uri) {
                     "$param": "$util.escapeJavaScript($input.params().header.get($param))" #if($foreach.hasNext),#end
                     #end  
                 },
+                "pathParams": {
+                    #foreach($param in $input.params().path.keySet())
+                    "$param": "$util.escapeJavaScript($input.params().path.get($param))" #if($foreach.hasNext),#end
+                
+                    #end
+                },
+                "queryParams": {
+                    #foreach($queryParam in $input.params().querystring.keySet())
+                    "$queryParam": "$util.escapeJavaScript($input.params().querystring.get($queryParam))" #if($foreach.hasNext),#end
+                
+                    #end
+                },
                 "hooksBefore": [],
                 "hooksAfter": [],
                 "uri": "${uri}" }
@@ -116,8 +128,10 @@ async function createResources(apiId, rootPathId, fullpath, baseUri, methods) {
 
     var resourceId = await createResourcePath(apiId, rootPathId, fullpath.split('/').slice(1));
 
+    if (!fullpath.startsWith('/')) fullpath = `/${fullpath}`;
+    
     console.log('Creating method for path :'+fullpath);
-    //     //methods= [ put,get]
+
     await createMethods(apiId, resourceId, objToarray(methods), baseUri + fullpath);
 
     return true;
