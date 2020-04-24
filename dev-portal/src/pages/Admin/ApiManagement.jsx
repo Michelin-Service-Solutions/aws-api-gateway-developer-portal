@@ -243,7 +243,8 @@ export const ApiManagement = observer(class ApiManagement extends React.Componen
       apiHost: '',
       apiName: '',
       apiEnv: '',
-      swaggerFile: {}
+      swaggerFile: {},
+      apiMappingTemplate: defaultMappingTemplate,
     })
   }
 
