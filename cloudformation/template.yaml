@@ -862,6 +862,10 @@ Resources:
               - cognito-idp:AdminGetUser
               - cognito-idp:AdminListGroupsForUser
             Resource: !GetAtt CognitoUserPool.Arn
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: '*'
 
   CognitoPreSignupTriggerExecutionRole:
     Type: AWS::IAM::Role

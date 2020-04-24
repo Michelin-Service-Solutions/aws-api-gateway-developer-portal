@@ -71,18 +71,43 @@ async function createMethods(dataApi, resourceId, methods, uri) {
 }
 
 async function createIntegrationProxy(dataApi, resourceId, method, uri) {
-
+    const lambdaFunction = 'arn:aws:lambda:us-east-1:540573004174:function:dev-portal-lambda-proxy';
     const params = {
         restApiId: dataApi,
         resourceId: resourceId,
         httpMethod: method,
-        integrationHttpMethod: method,
-        type: "HTTP_PROXY",
-        uri: uri
+        integrationHttpMethod: 'POST',
+        type: "AWS",
+        uri: `arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${lambdaFunction}/invocations`,
+        requestTemplates: {
+            'application/json' : 
+                ` { "body" : $input.json('$'),
+                "method": "$context.httpMethod",
+                "headers": {
+                    #foreach($param in $input.params().header.keySet())
+                    "$param": "$util.escapeJavaScript($input.params().header.get($param))" #if($foreach.hasNext),#end
+                    #end  
+                },
+                "hooksBefore": [],
+                "hooksAfter": [],
+                "uri": "${uri}" }
+                `
+        },
+        credentials: 'arn:aws:iam::540573004174:role/dev-portal-lamdba-execution'
     };
 
     //--rest-api-id vh5shnoi47  --resource-id 2vw3hk --http-method ANY --integration-http-method ANY --type HTTP_PROXY --uri https://api.integration.misp-solutions.com
     await apigateway.putIntegration(params).promise();
+
+    // Add 200 response 
+    const responseParams = {
+        restApiId: dataApi,
+        resourceId: resourceId,
+        httpMethod: method,
+        statusCode: '200'
+    }
+    await apigateway.putMethodResponse(responseParams).promise();
+    await apigateway.putIntegrationResponse(responseParams).promise();
 }
 
 
@@ -141,9 +166,8 @@ async function createAPI(name) {
 exports.post = async (req, res) => {
     const apiName = req.body.apiName;
     const jsonSpec = req.body.jsonSpec;
-    const host = req.body.host;
+    const baseUri = req.body.host;
     const environment = req.body.environment;
-    const baseUri = 'https://${stageVariables.host}'
 
     // First create the API in Api Gateway
     const { apiId, rootPathId } = await createAPI(apiName);
@@ -160,7 +184,7 @@ exports.post = async (req, res) => {
         }
         // Then deploy the environment
         if (environment) {
-            await deployEnvironment(apiId, environment, host);
+            await deployEnvironment(apiId, environment, baseUri);
         }
     } catch(e) {
         // If something failed lets delete the API
