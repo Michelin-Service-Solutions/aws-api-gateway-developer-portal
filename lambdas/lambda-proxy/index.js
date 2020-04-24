@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const aws = require('aws-sdk');
 const lambda = new aws.Lambda({ region: 'us-east-1'});
-
+const { URL, URLSearchParams } = require('url');
 
 const replaceAll = function (originalStr, searchStr , replaceStr) {
   const str = originalStr;
@@ -24,10 +24,23 @@ const getCallUri = function(pathParams, uri) {
   return callUri;
 }
 
+const appendQueryParams = function(uri, queryParams) {
+    let finalUri = new URL(uri);
+    finalUri.search = new URLSearchParams(queryParams).toString();
+    return finalUri.toString();
+}
+
+const callApi = async function (uri, method, bodyPayload, queryParams, headers) {
+    const body = (method !== "GET" && method !== "HEAD") ? bodyPayload : null;
+    const finalUri = appendQueryParams(uri, queryParams);
+    const apiResponse = await fetch(finalUri,{ method, body, headers });
+    return apiResponse.json();
+}
+
 exports.handler = async (event,context,callback) => {
     let payload = JSON.stringify(event);
     let response = null;
-
+    
     //return event
     // Before hooks
     try {
@@ -41,8 +54,7 @@ exports.handler = async (event,context,callback) => {
     
     //call realAPI with response
     let callUri = getCallUri(event.pathParams, event.uri);
-    const apiResponse = await fetch(callUri,{ method: event.method, body: payload, headers: event.headers });
-    const json = await apiResponse.json();
+    const json = await callApi(callUri, event.method, event.body, event.queryParams, event.headers);
     
     // after
     payload = json;
