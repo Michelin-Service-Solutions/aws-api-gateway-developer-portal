@@ -19,7 +19,11 @@
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^0.87.3",
     "swagger-ui": "git@github.com:amazon-meaisiah/swagger-ui.git#66cbe58352bc2455ea80ff99573fe06dee273f56",
-    "yamljs": "^0.3.0"
+    "yamljs": "^0.3.0",
+    "@material-ui/core": "^4.9.4",
+    "@material-ui/icons": "^4.9.1",
+    "styled-components": "^4.4.1",
+    "@michelin/acid-components": "^1.3.38"
   },
   "scripts": {
     "get-dependencies": "npm install; npm run build",

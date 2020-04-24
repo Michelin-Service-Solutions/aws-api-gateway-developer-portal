@@ -30,6 +30,14 @@ import ApiSearch from './components/ApiSearch'
 import { isAdmin, isRegistered, init, login, logout } from 'services/self'
 import './index.css'
 
+
+
+import { CssBaseline, MuiThemeProvider } from '@material-ui/core'
+import { createTheme, DialogProvider, SnackbarProvider } from '@michelin/acid-components'
+
+
+const theme = createTheme()
+
 loadFragments()
 
 // TODO: Feedback should be enabled if
@@ -64,7 +72,7 @@ const GettingStartedWrap = props => <GettingStarted {...props} />
 const DashboardWrap = props => <Dashboard {...props} />
 
 class App extends React.Component {
-  constructor () {
+  constructor() {
     super()
     init()
 
@@ -76,7 +84,7 @@ class App extends React.Component {
     }
   }
 
-  render () {
+  render() {
     return (
       <BrowserRouter>
         <>
@@ -116,4 +124,23 @@ class App extends React.Component {
   }
 }
 
-ReactDOM.render(<App />, document.getElementById('root'))
+export default App;
+
+const renderApp = () => {
+  ReactDOM.render(
+    <MuiThemeProvider theme={theme}>
+       <CssBaseline />
+        <DialogProvider>
+    {/* //     <SnackbarProvider> */}
+          <App />
+    {/* //     </SnackbarProvider> */}
+     </DialogProvider>
+    </MuiThemeProvider>,
+    document.getElementById('root')
+  )
+}
+
+renderApp()
+
+// ReactDOM.render(<App />, document.getElementById('root'))
+
