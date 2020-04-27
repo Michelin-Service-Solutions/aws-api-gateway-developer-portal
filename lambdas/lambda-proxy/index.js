@@ -38,13 +38,22 @@ const callApi = async function (uri, pathParams, method, bodyPayload, queryParam
     const body = (method === "GET" || method === "HEAD") ?  null : bodyPayload;
     let finalUri = replacePathParams(pathParams, uri);
     finalUri = appendQueryParams(finalUri, queryParams);
-    const response = await axios({
-        method,
-        url: finalUri,
-        headers,
-        data: body,
-        httpsAgent
-    });
+    let response = {};
+    try {
+       response = await axios({
+            method,
+            url: finalUri,
+            headers,
+            data: body,
+            httpsAgent
+        }); 
+    } catch(error) {
+        // This is because Axios by default throws an ERROR on 3xx, 4xx and 5xx responses
+        // We dont want that. We want the full response and then let API Gateway handle
+        // the errors.
+        response = error.response;
+    }
+   
     return {
         status: response.status,
         headers: response.headers,
