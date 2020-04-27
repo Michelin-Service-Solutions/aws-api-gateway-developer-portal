@@ -1,9 +1,8 @@
-const fetch = require('node-fetch');
+const axios = require('axios');
 const aws = require('aws-sdk');
 const lambda = new aws.Lambda({ region: 'us-east-1'});
 const { URL, URLSearchParams } = require('url');
 const https = require('https');
-
 const httpsAgent = new https.Agent({
      rejectUnauthorized: false,
 });
@@ -36,40 +35,65 @@ const appendQueryParams = function(uri, queryParams) {
 }
 
 const callApi = async function (uri, pathParams, method, bodyPayload, queryParams, headers) {
-    const body = (method !== "GET" && method !== "HEAD") ? bodyPayload : null;
+    const body = (method === "GET" || method === "HEAD") ?  null : bodyPayload;
     let finalUri = replacePathParams(pathParams, uri);
     finalUri = appendQueryParams(finalUri, queryParams);
-    const apiResponse = await fetch(finalUri,{ method, body, headers, agent: httpsAgent });
-    return apiResponse.json(); // revisar content type, si es JSON parseamos, si no proxy
+    const response = await axios({
+        method,
+        url: finalUri,
+        headers,
+        data: body,
+        httpsAgent
+    });
+    return {
+        status: response.status,
+        headers: response.headers,
+        body: response.data
+    }
 }
 
 exports.handler = async (event,context,callback) => {
     let payload = JSON.stringify(event);
     let response = null;
     
-    // Before hooks
+    // Before hooks.
+    // Hooks will receive a JSON string in the payload (flat)
+    // And they have to return same format within response.Payload.
     try {
         for (var _i = 0; _i < event.hooksBefore.length; _i++) {
             response = await lambda.invoke({FunctionName: event.hooksBefore[_i],Payload:payload}).promise();
-            payload = JSON.stringify({body: JSON.parse(response.Payload)});
+            payload = response.Payload;
         }
     } catch (err) {
         callback(err,null);
     }
     
+    const updatedEvent = JSON.parse(payload); // This is the outputs of the hooks, or it is equal event if hooks is empty
+
     //call realAPI with response
-    const apiResponse = await callApi(event.uri, event.pathParams, event.method, event.body, event.queryParams, event.headers);
+    const apiResponse = await callApi(
+        updatedEvent.uri, 
+        updatedEvent.pathParams, 
+        updatedEvent.method, 
+        updatedEvent.body, 
+        updatedEvent.queryParams, 
+        updatedEvent.headers
+    );
     
-    // after
-    payload = apiResponse;
-    response = payload;
+    // After HOOKS
+    // They must know how to process AXIOS responses in their payload, i.e { status, headers, body }
+    // and they must return the same format.
+    payload = JSON.stringify(apiResponse);
+    response = apiResponse;
+
     try {
         for (var _i = 0; _i < event.hooksAfter.length; _i++) {
             response = await lambda.invoke({FunctionName: event.hooksBefore[_i],Payload:payload}).promise();
-            payload = JSON.stringify({body: JSON.parse(response.Payload)});
+            payload = response.Payload;
         }
     } catch (err) {
         callback(err,null);
     }
-    return response.Payload ? response.Payload : response;
+    
+    return response.Payload ? JSON.parse(response.Payload) : response;
 };
